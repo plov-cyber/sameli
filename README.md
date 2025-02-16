@@ -1,2 +1,1 @@
-# sameli
-Simple Asynchronous ML Integration Framework
+# SAMELI - Simple Asynchronous ML Integration Framework

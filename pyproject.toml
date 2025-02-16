@@ -1,0 +1,16 @@
+[project]
+name = "sameli"
+version = "0.0.1"
+authors = [
+    { name = "Lev Rekhlov", email = "rekhlov.lev@mail.ru" }
+]
+description = "Simple Asynchronous ML Integration Framework"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = []
+
+[project.urls]
+Repository = "https://github.com/plov-cyber/sameli.git"
