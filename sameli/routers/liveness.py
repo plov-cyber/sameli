@@ -1,5 +1,6 @@
-import fastapi
 from http import HTTPStatus
+
+import fastapi
 from fastapi.responses import JSONResponse
 
 router = fastapi.APIRouter()

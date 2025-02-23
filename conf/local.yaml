@@ -1,5 +1,6 @@
 app_name: Test Model
 metrics_port: 0
+enable_kafka: true
 
 model_conf:
   name: dummy_v1
@@ -11,9 +12,15 @@ model_conf:
     mode: base
 
 kafka_conf:
-  enabled: true
-  topic: test
-  bootstrap_servers: test
+  consume_topic: test-topic
+  produce_topic: test-topic-out
+
+  consumer_conf:
+    bootstrap_servers: localhost:9092
+    group_id: sameli
+    auto_offset_reset: latest
+  producer_conf:
+    bootstrap_servers: localhost:9092
 
 http_conf:
   host: 127.0.0.1

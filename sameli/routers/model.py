@@ -1,9 +1,10 @@
-import fastapi
 from http import HTTPStatus
-from fastapi.responses import JSONResponse
-from fastapi import Request
-from pydantic import BaseModel
 from typing import Any
+
+import fastapi
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 router = fastapi.APIRouter()
 

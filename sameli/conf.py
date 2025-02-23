@@ -1,8 +1,8 @@
 from collections import UserDict
-
-import yaml
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 
 class Conf(UserDict[str, Any]):
@@ -23,6 +23,10 @@ class Conf(UserDict[str, Any]):
     @property
     def metrics_port(self) -> int:
         return self.get("metrics_port", 5000)
+
+    @property
+    def enable_kafka(self) -> bool:
+        return self.get("enable_kafka", False)
 
     @property
     def model_conf(self) -> dict[str, Any]:

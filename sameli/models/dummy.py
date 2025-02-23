@@ -5,10 +5,10 @@ from sameli.models import BaseModel
 
 class DummyModel(BaseModel):
     def __init__(self, name, **kwargs):
-        self.name = name
+        self.model_name = name
 
     def name(self) -> str:
-        return f"DummyModel[{self.name}]"
+        return self.model_name
 
     def load(self):
         pass

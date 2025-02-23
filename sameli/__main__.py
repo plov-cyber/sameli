@@ -1,4 +1,5 @@
 import argparse
+
 from loguru import logger
 
 import sameli
