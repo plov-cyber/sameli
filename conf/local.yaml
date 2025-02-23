@@ -1,0 +1,21 @@
+app_name: Test Model
+metrics_port: 0
+
+model_conf:
+  name: dummy_v1
+  type: DummyModel
+  artefacts:
+    model: bert.pt
+  hparams:
+    size: 128
+    mode: base
+
+kafka_conf:
+  enabled: true
+  topic: test
+  bootstrap_servers: test
+
+http_conf:
+  host: 127.0.0.1
+  port: 8000
+  loop: uvloop

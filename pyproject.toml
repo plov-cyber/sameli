@@ -7,10 +7,22 @@ authors = [
 description = "Simple Asynchronous ML Integration Framework"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "aiokafka==0.12.0",
+    "asyncio==3.4.3",
+    "fastapi==0.115.8",
+    "loguru==0.7.3",
+    "prometheus-client==0.21.1",
+]
 
 [project.optional-dependencies]
 dev = []
 
 [project.urls]
 Repository = "https://github.com/plov-cyber/sameli.git"
+
+[tool.setuptools.packages.find]
+where = ["sameli"]
+include = ["sameli*"]
+exclude = ["sameli.tests*"]
+namespaces = false
