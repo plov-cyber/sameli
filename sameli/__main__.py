@@ -19,7 +19,7 @@ def main():
 
     server = Server(settings=conf)
 
-    server.start()
+    server.run()
 
 
 if __name__ == "__main__":

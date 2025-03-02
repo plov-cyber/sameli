@@ -29,6 +29,10 @@ class Conf(UserDict[str, Any]):
         return self.get("enable_kafka", False)
 
     @property
+    def model_type(self) -> str:
+        return self.get("model_type", "EmptyModel")
+
+    @property
     def model_conf(self) -> dict[str, Any]:
         return self.get("model_conf", {})
 

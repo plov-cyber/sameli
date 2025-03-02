@@ -4,16 +4,17 @@ from sameli.models import BaseModel
 
 
 class DummyModel(BaseModel):
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs):
         self.model_name = name
 
+    @property
     def name(self) -> str:
         return self.model_name
 
-    def load(self):
+    def load(self) -> None:
         pass
 
-    def save(self, state: Any):
+    def save(self, state: Any) -> None:
         pass
 
     def preprocess(self, features: dict[str, Any]) -> dict[str, Any]:

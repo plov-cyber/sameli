@@ -1,0 +1,28 @@
+app_name: PyTorchModel Demo
+metrics_port: 5000
+enable_kafka: true
+
+model_type: PyTorchModel
+model_conf:
+  name: torch_v1
+  artefacts:
+    model: models/torch_clf.pt
+  hparams:
+    feature_names: [ fv_0 ]
+    device: cpu
+
+http_conf:
+  host: 127.0.0.1
+  port: 8000
+  loop: uvloop
+
+kafka_conf:
+  consume_topic: test-topic
+  produce_topic: test-topic-out
+
+  consumer_conf:
+    bootstrap_servers: localhost:9092
+    group_id: sameli
+    auto_offset_reset: latest
+  producer_conf:
+    bootstrap_servers: localhost:9092

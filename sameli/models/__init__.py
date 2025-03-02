@@ -1,7 +1,11 @@
 from sameli.models.base import BaseModel
 from sameli.models.dummy import DummyModel
+from sameli.models.pytorch import PyTorchModel
 
-__all__ = [
+models_list = [
     "BaseModel",
-    "DummyModel"
+    "DummyModel",
+    "PyTorchModel"
 ]
+
+__all__ = models_list + ["models_list"]

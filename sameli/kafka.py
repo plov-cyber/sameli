@@ -36,7 +36,7 @@ class KafkaClient(threading.Thread):
         await self.producer.start()
         logger.info("Started Kafka client")
 
-    async def process_message(self, message: dict[str, Any]) -> str:
+    async def process_message(self, message: dict[str, Any]) -> str | None:
         try:
             action, data = message['action'], message['data']
 
@@ -50,7 +50,7 @@ class KafkaClient(threading.Thread):
     async def process_messages(self):
         while not self._interrupt_event.is_set():
             try:
-                msg = await asyncio.wait_for(self.consumer.__anext__(), timeout=1.0)
+                msg = await asyncio.wait_for(fut=self.consumer.__anext__(), timeout=1.0)
             except asyncio.TimeoutError:
                 continue
 
@@ -61,10 +61,10 @@ class KafkaClient(threading.Thread):
 
                 logger.debug(f"Processing message: {consumed_message}")
 
-                processed_message = await self.process_message(consumed_message)
+                processed_message = await self.process_message(message=consumed_message)
 
                 if processed_message is not None:
-                    await self.producer.send_and_wait(self.produce_topic, processed_message.encode('utf-8'))
+                    await self.producer.send_and_wait(topic=self.produce_topic, value=processed_message.encode('utf-8'))
             except Exception as e:
                 logger.error(f"Unexpected error while processing message: {e}")
 
@@ -75,10 +75,10 @@ class KafkaClient(threading.Thread):
         logger.info("Stopped Kafka client")
 
     def run(self):
-        self.loop.run_until_complete(self.prepare())
-        self.loop.run_until_complete(self.process_messages())
-        self.loop.run_until_complete(self.shutdown())
+        self.loop.run_until_complete(future=self.prepare())
+        self.loop.run_until_complete(future=self.process_messages())
+        self.loop.run_until_complete(future=self.shutdown())
         self.loop.close()
 
     def stop(self):
-        self.loop.call_soon_threadsafe(self._interrupt_event.set)
+        self.loop.call_soon_threadsafe(callback=self._interrupt_event.set)
