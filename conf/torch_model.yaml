@@ -1,5 +1,5 @@
 app_name: PyTorchModel Demo
-metrics_port: 5000
+metrics_port: 5005
 enable_kafka: true
 
 model_type: PyTorchModel

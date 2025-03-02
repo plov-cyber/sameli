@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 import fastapi
+import prometheus_client as prom
 import uvicorn
 from fastapi import FastAPI
 from loguru import logger
@@ -9,6 +10,7 @@ import sameli
 import sameli.models
 from sameli.conf import Conf
 from sameli.kafka import KafkaClient
+from sameli.metrics import log_request
 from sameli.models import BaseModel, models_list
 from sameli.routers import liveness_router, model_router
 
@@ -16,6 +18,7 @@ from sameli.routers import liveness_router, model_router
 class Server:
     def __init__(self, settings: Conf):
         self.settings = settings
+        prom.start_http_server(self.settings.metrics_port)
 
         self.model: BaseModel = self.setup_model()
 
@@ -24,7 +27,7 @@ class Server:
 
         self.app: FastAPI = self.setup_http()
 
-    def setup_model(self):
+    def setup_model(self) -> BaseModel:
         if self.settings.model_type not in models_list:
             raise NotImplementedError(f"Unknown model type: {self.settings.model_type}")
 
@@ -33,12 +36,12 @@ class Server:
 
         return model
 
-    def setup_kafka(self):
+    def setup_kafka(self) -> KafkaClient:
         kafka_conf = self.settings.kafka_conf
 
         return KafkaClient(model=self.model, **kafka_conf)
 
-    def setup_http(self):
+    def setup_http(self) -> FastAPI:
         app = fastapi.FastAPI(
             title=self.settings.app_name,
             version=sameli.__version__,
@@ -47,10 +50,11 @@ class Server:
 
         app.include_router(liveness_router, prefix="/api/v1/health", tags=["App Status"])
         app.include_router(model_router, prefix="/api/v1/model", tags=["Model Functions"])
+        app.middleware("http")(log_request)
 
         return app
 
-    def run(self):
+    def run(self) -> None:
         uvicorn.run(self.app, **self.settings.http_conf)
 
     def lifespan_callback(self):
