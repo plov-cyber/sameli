@@ -25,3 +25,6 @@ class DummyModel(BaseModel):
 
     def postprocess(self, predictions: int) -> int:
         return predictions
+
+    def pipeline(self, features: dict[str, Any]) -> int:
+        return 0

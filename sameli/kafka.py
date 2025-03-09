@@ -1,72 +1,126 @@
 import asyncio
 import json
 import threading
-from typing import Any
+from json import JSONDecodeError
+from typing import Any, Optional
 
+import aiokafka.errors
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from loguru import logger
+from pydantic import BaseModel as PydanticBase, ValidationError
 
+from sameli.metrics import Metrics
 from sameli.models import BaseModel
+
+
+class Message(PydanticBase):
+    action: str
+    model_name: str
+    data: Any
 
 
 class KafkaClient(threading.Thread):
     def __init__(self,
                  model: BaseModel,
                  consume_topic: str, produce_topic: str,
-                 consumer_conf: dict[str, Any], producer_conf: dict[str, Any]
+                 consumer_conf: dict[str, Any], producer_conf: dict[str, Any],
+                 wait_timeout: float = 1.0
                  ):
         super().__init__()
 
         self.model = model
+        self.loop = asyncio.new_event_loop()
+        self._interrupt_event = asyncio.Event()
 
         self.consume_topic = consume_topic
         self.produce_topic = produce_topic
+        self.wait_timeout = wait_timeout
 
         self.consumer_conf = consumer_conf
         self.producer_conf = producer_conf
 
-        self.loop = asyncio.new_event_loop()
-        self._interrupt_event = asyncio.Event()
+        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.producer: Optional[AIOKafkaProducer] = None
 
     async def prepare(self):
         self.consumer = AIOKafkaConsumer(self.consume_topic, **self.consumer_conf)
         self.producer = AIOKafkaProducer(**self.producer_conf)
 
-        await self.consumer.start()
-        await self.producer.start()
-        logger.info("Started Kafka client")
-
-    async def process_message(self, message: dict[str, Any]) -> str | None:
         try:
-            action, data = message['action'], message['data']
+            await self.consumer.start()
+            await self.producer.start()
+            logger.info("Started Kafka client")
+        except aiokafka.errors.KafkaConnectionError as e:
+            Metrics.kafka_error_total.labels(stage="prepare", error="connection_error").inc()
+            logger.error(e)
+            self.stop()
 
-            result = getattr(self.model, action)(data)
+    def is_skip(self, msg: Message) -> bool:
+        if msg.model_name != self.model.name:
+            Metrics.kafka_msgs_total.labels(action=msg.action, outcome="skip_by_model_name").inc()
+            return True
+        elif msg.action not in self.model.actions:
+            Metrics.kafka_msgs_total.labels(action=msg.action, outcome="skip_by_action").inc()
+            return True
 
-            return json.dumps(result)
+        return False
+
+    async def get_message(self) -> Optional[Message]:
+        try:
+            msg = await asyncio.wait_for(fut=self.consumer.__anext__(), timeout=self.wait_timeout)
+            msg = json.loads(msg.value.decode("utf-8"))
+            msg = Message(**msg)
+
+            return msg
+
+        except asyncio.TimeoutError:
+            pass
+        except JSONDecodeError as e:
+            Metrics.kafka_error_total.labels(stage="parse", error="bad_json").inc()
+            logger.error(f"Error parsing Kafka message: {e}")
+        except ValidationError as e:
+            Metrics.kafka_error_total.labels(stage="parse", error="bad_format").inc()
+            logger.error(f"Error parsing Kafka message: {e}")
         except Exception as e:
-            logger.error(f"Unexpected error parsing message '{message}': {e}")
-            return None
+            Metrics.kafka_error_total.labels(stage="parse", error="unknown").inc()
+            logger.error(f"Error parsing Kafka message: {e}")
+
+        return None
+
+    def run_action(self, msg: Message) -> Any:
+        try:
+            result = getattr(self.model, msg.action)(msg.data)
+
+            return result
+        except Exception as e:
+            Metrics.kafka_error_total.labels(stage="action", error="unknown").inc()
+            logger.error(f"Unkown error running action: {e}")
 
     async def process_messages(self):
         while not self._interrupt_event.is_set():
-            try:
-                msg = await asyncio.wait_for(fut=self.consumer.__anext__(), timeout=1.0)
-            except asyncio.TimeoutError:
+            msg = await self.get_message()
+            if msg is None:
                 continue
 
-            try:
-                consumed_message = json.loads(msg.value.decode('utf-8'))
-                if consumed_message.get('model_name') != self.model.name:
+            with Metrics.kafka_msgs_summary.labels(action=msg.action).time():
+                if self.is_skip(msg):
                     continue
 
-                logger.debug(f"Processing message: {consumed_message}")
+                result = self.run_action(msg)
 
-                processed_message = await self.process_message(message=consumed_message)
+                if result is None:
+                    Metrics.kafka_msgs_total.labels(action=msg.action, outcome="empty_result").inc()
+                    continue
 
-                if processed_message is not None:
-                    await self.producer.send_and_wait(topic=self.produce_topic, value=processed_message.encode('utf-8'))
-            except Exception as e:
-                logger.error(f"Unexpected error while processing message: {e}")
+                try:
+                    value = result.encode("utf-8")
+                except AttributeError as e:
+                    Metrics.kafka_error_total.labels(stage="produce", error="encode").inc()
+                    value = str(result).encode("utf-8")
+
+                await self.producer.send_and_wait(topic=self.produce_topic, value=value)
+
+            Metrics.kafka_msgs_total.labels(action=msg.action, outcome="process").inc()
 
     async def shutdown(self):
         self._interrupt_event.set()

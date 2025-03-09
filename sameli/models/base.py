@@ -3,6 +3,8 @@ from typing import Any
 
 
 class BaseModel(ABC):
+    actions: list[str] = ['preprocess', 'predict', 'postprocess', 'pipeline']
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -27,3 +29,6 @@ class BaseModel(ABC):
     @abstractmethod
     def postprocess(self, predictions: Any) -> Any:
         raise NotImplementedError("Model should have postprocess method.")
+
+    def pipeline(self, features: dict[str, Any]) -> Any:
+        return self.postprocess(self.predict(self.preprocess(features)))

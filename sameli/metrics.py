@@ -1,5 +1,3 @@
-import time
-
 import fastapi
 import prometheus_client as prom
 
@@ -13,23 +11,43 @@ class Metrics:
         labelnames=["method", "status", "path"]
     )
 
-    request_time_seconds = prom.Histogram(
+    request_elapsed_summary = prom.Summary(
         namespace="sameli",
         subsystem="server",
-        name="request_duration_seconds",
+        name="request_elapsed_summary",
         documentation="Total time spent for HTTP request.",
-        buckets=(0.001, 0.002, 0.003, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.00),
         labelnames=["method", "path"]
+    )
+
+    kafka_msgs_total = prom.Counter(
+        namespace="sameli",
+        subsystem="kafka",
+        name="msgs_total",
+        documentation="Total number of Kafka messages processed.",
+        labelnames=["action", "outcome"]
+    )
+
+    kafka_msgs_summary = prom.Summary(
+        namespace="sameli",
+        subsystem="kafka",
+        name="msgs_summary",
+        documentation="Total time spend for Kafka message.",
+        labelnames=["action"]
+    )
+
+    kafka_error_total = prom.Counter(
+        namespace="sameli",
+        subsystem="kafka",
+        name="error_total",
+        documentation="Total errors in KafkaClient.",
+        labelnames=["stage", "error"]
     )
 
 
 async def log_request(request: fastapi.Request, call_next) -> fastapi.Response:
-    start_time = time.perf_counter()
-    response: fastapi.Response = await call_next(request)
-    latency = time.perf_counter() - start_time
+    with Metrics.request_elapsed_summary.labels(method=request.method, path=request.url.path).time():
+        response: fastapi.Response = await call_next(request)
 
-    if request.url.path.startswith("/api"):
-        Metrics.requests_total.labels(method=request.method, status=int(response.status_code), path=request.url.path).inc()
-        Metrics.request_time_seconds.labels(method=request.method, path=request.url.path).observe(latency)
+    Metrics.requests_total.labels(method=request.method, status=int(response.status_code), path=request.url.path).inc()
 
     return response

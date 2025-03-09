@@ -9,49 +9,45 @@ from pydantic import BaseModel
 router = fastapi.APIRouter()
 
 
-class ModelInput(BaseModel):
+class PredictInput(BaseModel):
     features: dict[str, Any]
 
 
-class ModelOutput(BaseModel):
+class PreprocessInput(BaseModel):
+    raw_features: dict[str, Any]
+
+
+class PostprocessInput(BaseModel):
     predictions: Any
 
 
 @router.post('/preprocess')
-async def preprocess(request: Request, model_input: ModelInput):
+async def preprocess(request: Request, data: PreprocessInput):
     return JSONResponse(
         status_code=HTTPStatus.OK,
-        content=request.state.model.preprocess(model_input.features)
-    )
-
-
-@router.post('/predict_only')
-async def predict_only(request: Request, model_input: ModelInput):
-    return JSONResponse(
-        status_code=HTTPStatus.OK,
-        content=request.state.model.predict(model_input.features)
+        content=request.state.model.preprocess(data.raw_features)
     )
 
 
 @router.post('/predict')
-async def predict(request: Request, model_input: ModelInput):
-    try:
-        preprocessed_input = request.state.model.preprocess(model_input.features)
-        predictions = request.state.model.predict(preprocessed_input)
-        output = request.state.model.postprocess(predictions)
+async def predict(request: Request, data: PredictInput):
+    return JSONResponse(
+        status_code=HTTPStatus.OK,
+        content=request.state.model.predict(data.features)
+    )
 
-        return JSONResponse(status_code=HTTPStatus.OK, content=output)
 
-    except Exception as e:
-        return JSONResponse(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            content=str(e)
-        )
+@router.post('/pipeline')
+async def pipeline(request: Request, data: PreprocessInput):
+    return JSONResponse(
+        status_code=HTTPStatus.OK,
+        content=request.state.model.pipeline(data.raw_features)
+    )
 
 
 @router.post('/postprocess')
-async def postprocess(request: Request, model_output: ModelOutput):
+async def postprocess(request: Request, data: PostprocessInput):
     return JSONResponse(
         status_code=HTTPStatus.OK,
-        content=request.state.model.postprocess(model_output.predictions)
+        content=request.state.model.postprocess(data.predictions)
     )

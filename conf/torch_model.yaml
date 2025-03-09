@@ -20,6 +20,8 @@ kafka_conf:
   consume_topic: test-topic
   produce_topic: test-topic-out
 
+  wait_timeout: 1.0
+
   consumer_conf:
     bootstrap_servers: localhost:9092
     group_id: sameli
