@@ -18,7 +18,7 @@ class Conf(UserDict[str, Any]):
 
     @property
     def app_name(self) -> str:
-        return self.get("app_name", "Sameli")
+        return self.get("app_name", "SAMELI")
 
     @property
     def metrics_port(self) -> int:

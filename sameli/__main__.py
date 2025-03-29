@@ -9,7 +9,7 @@ from sameli.server import Server
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--conf", default="/conf/local.yaml")
+    parser.add_argument("--conf", default="/conf/dummy_model.yaml")
 
     args = parser.parse_args()
 

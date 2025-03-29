@@ -1,5 +1,5 @@
 app_name: PyTorchModel Demo
-metrics_port: 5005
+metrics_port: 9090
 enable_kafka: true
 
 model_type: PyTorchModel
@@ -12,7 +12,7 @@ model_conf:
     device: cpu
 
 http_conf:
-  host: 127.0.0.1
+  host: 0.0.0.0
   port: 8000
   loop: uvloop
 
@@ -20,11 +20,11 @@ kafka_conf:
   consume_topic: test-topic
   produce_topic: test-topic-out
 
-  wait_timeout: 1.0
+  msg_wait_timeout: 1.0
 
   consumer_conf:
-    bootstrap_servers: localhost:9092
+    bootstrap_servers: kafka-broker:9092
     group_id: sameli
     auto_offset_reset: latest
   producer_conf:
-    bootstrap_servers: localhost:9092
+    bootstrap_servers: kafka-broker:9092

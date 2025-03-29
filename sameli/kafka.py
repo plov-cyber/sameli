@@ -11,6 +11,7 @@ from pydantic import BaseModel as PydanticBase, ValidationError
 
 from sameli.metrics import Metrics
 from sameli.models import BaseModel
+from sameli.utils import waited
 
 
 class Message(PydanticBase):
@@ -22,9 +23,9 @@ class Message(PydanticBase):
 class KafkaClient(threading.Thread):
     def __init__(self,
                  model: BaseModel,
-                 consume_topic: str, produce_topic: str,
-                 consumer_conf: dict[str, Any], producer_conf: dict[str, Any],
-                 wait_timeout: float = 1.0
+                 consume_topic: str, consumer_conf: dict[str, Any],
+                 produce_topic: str, producer_conf: dict[str, Any],
+                 msg_wait_timeout: float = 1.0
                  ):
         super().__init__()
 
@@ -32,9 +33,9 @@ class KafkaClient(threading.Thread):
         self.loop = asyncio.new_event_loop()
         self._interrupt_event = asyncio.Event()
 
-        self.consume_topic = consume_topic
-        self.produce_topic = produce_topic
-        self.wait_timeout = wait_timeout
+        self.consume_topic    = consume_topic
+        self.produce_topic    = produce_topic
+        self.msg_wait_timeout = msg_wait_timeout
 
         self.consumer_conf = consumer_conf
         self.producer_conf = producer_conf
@@ -65,13 +66,16 @@ class KafkaClient(threading.Thread):
 
         return False
 
-    async def get_message(self) -> Optional[Message]:
+    async def get_message(self) -> tuple[Optional[str], Optional[Message]]:
         try:
-            msg = await asyncio.wait_for(fut=self.consumer.__anext__(), timeout=self.wait_timeout)
+            msg = await asyncio.wait_for(fut=self.consumer.__anext__(), timeout=self.msg_wait_timeout)
+            Metrics.kafka_msg_waiting_summary.labels(topic=msg.topic, partition=msg.partition).observe(waited(msg))
+
+            trigger_id = msg.key
             msg = json.loads(msg.value.decode("utf-8"))
             msg = Message(**msg)
 
-            return msg
+            return trigger_id, msg
 
         except asyncio.TimeoutError:
             pass
@@ -85,7 +89,7 @@ class KafkaClient(threading.Thread):
             Metrics.kafka_error_total.labels(stage="parse", error="unknown").inc()
             logger.error(f"Error parsing Kafka message: {e}")
 
-        return None
+        return None, None
 
     def run_action(self, msg: Message) -> Any:
         try:
@@ -98,7 +102,7 @@ class KafkaClient(threading.Thread):
 
     async def process_messages(self):
         while not self._interrupt_event.is_set():
-            msg = await self.get_message()
+            trigger_id, msg = await self.get_message()
             if msg is None:
                 continue
 
@@ -113,12 +117,14 @@ class KafkaClient(threading.Thread):
                     continue
 
                 try:
-                    value = result.encode("utf-8")
-                except AttributeError as e:
-                    Metrics.kafka_error_total.labels(stage="produce", error="encode").inc()
                     value = str(result).encode("utf-8")
+                except Exception as e:
+                    value = None
+                    Metrics.kafka_error_total.labels(stage="produce", error="unknown").inc()
+                    logger.error(f"Unknown error encoding result: {e}")
 
-                await self.producer.send_and_wait(topic=self.produce_topic, value=value)
+                await self.producer.send_and_wait(topic=self.produce_topic, key=trigger_id, value=value)
+                logger.info(f"Produced result for trigger_id={trigger_id} to Kafka.")
 
             Metrics.kafka_msgs_total.labels(action=msg.action, outcome="process").inc()
 

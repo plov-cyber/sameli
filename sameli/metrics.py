@@ -27,6 +27,14 @@ class Metrics:
         labelnames=["action", "outcome"]
     )
 
+    kafka_msg_waiting_summary = prom.Summary(
+        namespace="sameli",
+        subsystem="kafka",
+        name="msg_waiting",
+        documentation="Total waiting time in Kafka topic in milliseconds.",
+        labelnames=["topic", "partition"]
+    )
+
     kafka_msgs_summary = prom.Summary(
         namespace="sameli",
         subsystem="kafka",

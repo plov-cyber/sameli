@@ -13,10 +13,15 @@ dependencies = [
     "fastapi==0.115.8",
     "loguru==0.7.3",
     "prometheus-client==0.21.1",
+    "PyYAML==6.0.2",
+    "uvicorn==0.34.0",
+    "uvloop==0.21.0"
 ]
 
 [project.optional-dependencies]
-dev = []
+torch=[
+    "torch==2.6.0"
+]
 
 [project.urls]
 Repository = "https://github.com/plov-cyber/sameli.git"
