@@ -22,20 +22,23 @@ class PyTorchModel(BaseModel):
         return self.hparams.get("feature_names", [])
 
     def load(self) -> torch.ScriptModule:
-        model = torch.jit.load(self.artefacts["model"], map_location=self.hparams["device"])
+        model = torch.jit.load(self.artefacts["model"], map_location=self.hparams.get("device", "cpu"))
         model = model.eval()
 
         return model
 
     def save(self, model: torch.ScriptModule) -> None:
-        self.model = model
+        self.model: torch.ScriptModule = model
 
     def preprocess(self, features: dict[str, Any]) -> torch.Tensor:
         features_list = [features[key] for key in features]
         return torch.Tensor(features_list)
 
     def predict(self, features: torch.Tensor) -> torch.Tensor:
-        return self.model(features)
+        with torch.no_grad():
+            outputs = self.model(features)
+
+        return outputs
 
     def postprocess(self, predictions: torch.Tensor) -> float:
         return predictions.item()

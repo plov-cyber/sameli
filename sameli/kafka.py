@@ -1,6 +1,7 @@
 import asyncio
 import json
 import threading
+import time
 from json import JSONDecodeError
 from typing import Any, Optional
 
@@ -33,8 +34,8 @@ class KafkaClient(threading.Thread):
         self.loop = asyncio.new_event_loop()
         self._interrupt_event = asyncio.Event()
 
-        self.consume_topic    = consume_topic
-        self.produce_topic    = produce_topic
+        self.consume_topic = consume_topic
+        self.produce_topic = produce_topic
         self.msg_wait_timeout = msg_wait_timeout
 
         self.consumer_conf = consumer_conf
@@ -47,14 +48,17 @@ class KafkaClient(threading.Thread):
         self.consumer = AIOKafkaConsumer(self.consume_topic, **self.consumer_conf)
         self.producer = AIOKafkaProducer(**self.producer_conf)
 
-        try:
-            await self.consumer.start()
-            await self.producer.start()
-            logger.info("Started Kafka client")
-        except aiokafka.errors.KafkaConnectionError as e:
-            Metrics.kafka_error_total.labels(stage="prepare", error="connection_error").inc()
-            logger.error(e)
-            self.stop()
+        started = False
+        while not (started or self._interrupt_event.is_set()):
+            try:
+                await self.consumer.start()
+                await self.producer.start()
+                logger.info("Started Kafka client")
+                started = True
+            except aiokafka.errors.KafkaConnectionError as e:
+                Metrics.kafka_error_total.labels(stage="prepare", error="connection_error").inc()
+                logger.error(e)
+                time.sleep(0.5)
 
     def is_skip(self, msg: Message) -> bool:
         if msg.model_name != self.model.name:

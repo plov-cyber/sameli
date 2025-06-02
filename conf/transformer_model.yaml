@@ -1,0 +1,37 @@
+app_name: TransformerModel Demo
+metrics_port: 9090
+enable_kafka: false
+
+model_type: TransformerModel
+model_conf:
+  name: threat_classifier_v1
+  hparams:
+    feature_names: [ text ]
+    model_class: AutoModelForSequenceClassification
+    model_path: "HiddenKise/Kaviel-threat-text-classifier"
+    labels: [
+      "Banking Fraud",
+      "Terrorist Attack",
+      "Life Threat",
+      "Online Scams",
+      "Information Leakage",
+      "Casual Conversation"
+    ]
+
+http_conf:
+  host: 0.0.0.0
+  port: 8000
+  loop: uvloop
+
+kafka_conf:
+  consume_topic: test-topic
+  produce_topic: test-topic-out
+
+  msg_wait_timeout: 1.0
+
+  consumer_conf:
+    bootstrap_servers: localhost:9092
+    group_id: sameli
+    auto_offset_reset: latest
+  producer_conf:
+    bootstrap_servers: localhost:9092

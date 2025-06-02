@@ -22,6 +22,9 @@ dependencies = [
 torch=[
     "torch==2.6.0"
 ]
+transformer=[
+    "transformers==4.52.4"
+]
 
 [project.urls]
 Repository = "https://github.com/plov-cyber/sameli.git"
