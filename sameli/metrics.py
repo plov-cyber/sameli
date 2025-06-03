@@ -51,6 +51,23 @@ class Metrics:
         labelnames=["stage", "error"]
     )
 
+    redis_operations_total = prom.Counter(
+        namespace="sameli",
+        subsystem="redis",
+        name="operations_total",
+        documentation="Total number of Redis operations performed.",
+        labelnames=["operation"]
+    )
+
+    redis_error_total = prom.Counter(
+        namespace="sameli",
+        subsystem="redis",
+        name="error_total",
+        documentation="Total errors in RedisClient.",
+        labelnames=["stage", "error"]
+    )
+
+
 
 async def log_request(request: fastapi.Request, call_next) -> fastapi.Response:
     with Metrics.request_elapsed_summary.labels(method=request.method, path=request.url.path).time():

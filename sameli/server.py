@@ -12,6 +12,7 @@ from sameli.conf import Conf
 from sameli.kafka import KafkaClient
 from sameli.metrics import log_request
 from sameli.models import BaseModel, models_list
+from sameli.redis import RedisClient
 from sameli.routers import liveness_router, model_router
 
 
@@ -21,6 +22,7 @@ class Server:
         prom.start_http_server(self.settings.metrics_port)
 
         self.model: BaseModel = self.setup_model()
+        self.redis_client: RedisClient = self.setup_redis()
 
         if self.settings.enable_kafka:
             self.kafka_client: KafkaClient = self.setup_kafka()
@@ -38,8 +40,11 @@ class Server:
 
     def setup_kafka(self) -> KafkaClient:
         kafka_conf = self.settings.kafka_conf
+        return KafkaClient(model=self.model, redis=self.redis_client, **kafka_conf)
 
-        return KafkaClient(model=self.model, **kafka_conf)
+    def setup_redis(self) -> RedisClient:
+        redis_conf = self.settings.redis_conf
+        return RedisClient(**redis_conf)
 
     def setup_http(self) -> FastAPI:
         app = fastapi.FastAPI(
@@ -61,12 +66,14 @@ class Server:
         @asynccontextmanager
         async def lifespan(app: fastapi.FastAPI):
             logger.info("Starting server")
+            await self.redis_client.connect()
             if self.settings.enable_kafka:
                 self.kafka_client.start()
 
-            yield {'model': self.model}
+            yield {'model': self.model, 'redis': self.redis_client}
 
             logger.info("Stopping server")
+            await self.redis_client.disconnect()
             if self.settings.enable_kafka:
                 self.kafka_client.stop()
                 self.kafka_client.join()

@@ -23,8 +23,14 @@ kafka_conf:
   msg_wait_timeout: 1.0
 
   consumer_conf:
-    bootstrap_servers: localhost:9092
+    bootstrap_servers: kafka-broker:9092
     group_id: sameli
     auto_offset_reset: latest
   producer_conf:
-    bootstrap_servers: localhost:9092
+    bootstrap_servers: kafka-broker:9092
+
+redis_conf:
+  redis_url: redis://redis
+  result_prefix: result
+  ttl: 3600
+  pool_size: 10

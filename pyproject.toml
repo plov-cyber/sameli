@@ -9,20 +9,15 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "aiokafka==0.12.0",
+    "aioredis==2.0.1",
     "asyncio==3.4.3",
     "fastapi==0.115.8",
     "loguru==0.7.3",
     "prometheus-client==0.21.1",
     "PyYAML==6.0.2",
     "uvicorn==0.34.0",
-    "uvloop==0.21.0"
-]
-
-[project.optional-dependencies]
-torch=[
-    "torch==2.6.0"
-]
-transformer=[
+    "uvloop==0.21.0",
+    "torch==2.6.0",
     "transformers==4.52.4"
 ]
 

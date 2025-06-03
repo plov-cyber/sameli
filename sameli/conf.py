@@ -41,5 +41,9 @@ class Conf(UserDict[str, Any]):
         return self.get("kafka_conf", {})
 
     @property
+    def redis_conf(self) -> dict[str, Any]:
+        return self.get("redis_conf", {})
+
+    @property
     def http_conf(self) -> dict[str, Any]:
         return self.get("http_conf", {})

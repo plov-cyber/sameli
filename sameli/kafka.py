@@ -13,6 +13,7 @@ from pydantic import BaseModel as PydanticBase, ValidationError
 from sameli.metrics import Metrics
 from sameli.models import BaseModel
 from sameli.utils import waited
+from sameli.redis import RedisClient
 
 
 class Message(PydanticBase):
@@ -24,6 +25,7 @@ class Message(PydanticBase):
 class KafkaClient(threading.Thread):
     def __init__(self,
                  model: BaseModel,
+                 redis: RedisClient,
                  consume_topic: str, consumer_conf: dict[str, Any],
                  produce_topic: str, producer_conf: dict[str, Any],
                  msg_wait_timeout: float = 1.0
@@ -31,6 +33,7 @@ class KafkaClient(threading.Thread):
         super().__init__()
 
         self.model = model
+        self.redis = redis
         self.loop = asyncio.new_event_loop()
         self._interrupt_event = asyncio.Event()
 
@@ -75,11 +78,11 @@ class KafkaClient(threading.Thread):
             msg = await asyncio.wait_for(fut=self.consumer.__anext__(), timeout=self.msg_wait_timeout)
             Metrics.kafka_msg_waiting_summary.labels(topic=msg.topic, partition=msg.partition).observe(waited(msg))
 
-            trigger_id = msg.key
+            task_id = msg.key
             msg = json.loads(msg.value.decode("utf-8"))
             msg = Message(**msg)
 
-            return trigger_id, msg
+            return task_id, msg
 
         except asyncio.TimeoutError:
             pass
@@ -106,7 +109,7 @@ class KafkaClient(threading.Thread):
 
     async def process_messages(self):
         while not self._interrupt_event.is_set():
-            trigger_id, msg = await self.get_message()
+            task_id, msg = await self.get_message()
             if msg is None:
                 continue
 
@@ -127,8 +130,9 @@ class KafkaClient(threading.Thread):
                     Metrics.kafka_error_total.labels(stage="produce", error="unknown").inc()
                     logger.error(f"Unknown error encoding result: {e}")
 
-                await self.producer.send_and_wait(topic=self.produce_topic, key=trigger_id, value=value)
-                logger.info(f"Produced result for trigger_id={trigger_id} to Kafka.")
+                await self.producer.send_and_wait(topic=self.produce_topic, key=task_id, value=value)
+                await self.redis.store_result(task_id=task_id, result=value)
+                logger.info(f"Produced result for task_id={task_id} to Kafka.")
 
             Metrics.kafka_msgs_total.labels(action=msg.action, outcome="process").inc()
 
