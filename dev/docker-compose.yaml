@@ -5,10 +5,10 @@ services:
   sameli:
     build:
       context: ..
-      args:
-        EXTRAS: "torch"
+#      args:
+#        EXTRAS: "torch"
     container_name: sameli
-    command: [ "--conf", "/app/conf/torch_model.yaml" ]
+    command: [ "--conf", "/app/conf/transformer_model.yaml" ]
     ports:
       - "8000:8000"
     volumes:
